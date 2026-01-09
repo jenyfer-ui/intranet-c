@@ -1,0 +1,476 @@
+import React, { useState, useEffect } from 'react';
+
+// Components
+import Sidebar from './src/components/Sidebar';
+import Header from './src/components/Header';
+import Dashboard from './src/pages/Dashboard';
+import TeamDirectory from './src/pages/TeamDirectory';
+import Projects from './src/pages/Projects';
+import DocumentCenter from './src/pages/DocumentCenter';
+import NewsAndEvents from './src/pages/NewsAndEvents';
+import Login from './src/pages/Login';
+import ResourcesByDepartment from './src/pages/ResourcesByDepartment';
+import SettingsPage from './src/pages/Settings';
+import NotificationsPanel from './src/components/NotificationsPanel';
+import HelpWidget from './src/components/HelpWidget';
+import ChatWidget from './src/components/ChatWidget';
+
+// Data
+import { allPeopleFlat } from './data/people';
+import { projectsData } from './data/projects';
+import { initialNotifications } from './data/notifications';
+import { socialEventsData } from './data/socialEvents';
+import { generateUserCredentials, authenticateUser, UserCredentials, auth } from './src/data/auth';
+
+// DB
+import { getAllDocuments, addDocuments, updateDocument, deleteDocument } from './utils/db';
+import { loadFromLocalStorage, saveToLocalStorage } from './utils/storage';
+
+// Types
+import { 
+  Project, 
+  Document, 
+  Notification, 
+  SocialEvent, 
+  ProjectStatus, 
+  Person
+} from './src/types';
+
+function App() {
+  // Auth state
+  const [userCredentials] = useState<UserCredentials[]>(() => generateUserCredentials(allPeopleFlat));
+  const [isLoggedIn, setIsLoggedIn] = useState(() => loadFromLocalStorage('isLoggedIn', false));
+  const [currentUser, setCurrentUser] = useState<Person>(() => {
+    const savedUser = loadFromLocalStorage('currentUser', null);
+    return savedUser || allPeopleFlat[5] || {
+      id: '1',
+      name: 'Usuário',
+      email: 'usuario@exemplo.com',
+      role: 'Usuário',
+      phone: '',
+      avatarUrl: '',
+      joinDate: new Date().toISOString(),
+      status: 'online',
+      department: 'TI Gerencial',
+      birthDate: '1990-01-01',
+      settings: {
+        theme: 'light',
+        language: 'pt-BR',
+        timezone: 'America/Sao_Paulo',
+        notifications: {
+          email: true,
+          push: true,
+          desktop: true,
+          mentions: true,
+          news: true,
+          updates: true
+        },
+        privacy: {
+          showEmail: true,
+          showPhone: false,
+          showBirthday: true,
+          showActivity: true,
+          profileVisibility: 'public' as const
+        }
+      }
+    };
+  });
+
+  // UI State
+  const [isDarkMode, setIsDarkMode] = useState(() => loadFromLocalStorage('isDarkMode', false));
+  const [activePage, setActivePage] = useState('Dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [personToEdit, setPersonToEdit] = useState<Person | null>(null);
+
+  // Data State
+  const [people, setPeople] = useState<Person[]>(() => {
+    return loadFromLocalStorage('people', allPeopleFlat);
+  });
+  
+  const [projects, setProjects] = useState<Project[]>(() => 
+    loadFromLocalStorage('projects', projectsData)
+  );
+  
+  const [documents, setDocuments] = useState<Document[]>([]);
+  
+  const [notifications, setNotifications] = useState<Notification[]>(() => 
+    loadFromLocalStorage('notifications', initialNotifications)
+  );
+  
+  const [allEvents, setAllEvents] = useState<SocialEvent[]>(() => 
+    loadFromLocalStorage('events', [...socialEventsData])
+  );
+
+  // Effects
+  useEffect(() => {
+    saveToLocalStorage('isLoggedIn', isLoggedIn);
+  }, [isLoggedIn]);
+  
+  useEffect(() => {
+    saveToLocalStorage('currentUser', currentUser);
+  }, [currentUser]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    saveToLocalStorage('isDarkMode', isDarkMode);
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    saveToLocalStorage('people', people);
+  }, [people]);
+  
+  useEffect(() => {
+    saveToLocalStorage('projects', projects);
+  }, [projects]);
+  
+  useEffect(() => {
+    saveToLocalStorage('notifications', notifications);
+  }, [notifications]);
+  
+  useEffect(() => {
+    saveToLocalStorage('events', allEvents);
+  }, [allEvents]);
+  
+  useEffect(() => {
+    const loadDocs = async () => {
+      const docs = await getAllDocuments();
+      setDocuments(docs);
+    };
+    loadDocs();
+  }, []);
+
+  // Handlers
+  const handleLogin = (user: any) => {
+    setCurrentUser(user);
+    setIsLoggedIn(true);
+    setActivePage('Dashboard');
+    return { success: true };
+  };
+
+  const authenticate = (username: string, password: string) => {
+    // TODO: Replace this with actual authentication logic
+    // For now, we'll just check if the username and password are not empty
+    if (username && password) {
+      return { id: 1, username, name: 'Admin User', role: 'admin' };
+    }
+    return null;
+  };
+
+  // Função de wrapper para o componente Login
+  const handleLoginWrapper = (userData: any) => {
+    // Esta função é um adaptador para o componente Login
+    // que espera receber um objeto de usuário diretamente
+    if (userData) {
+      const user = allPeopleFlat.find(u => u.email === userData.email) || userData;
+      setCurrentUser(user);
+      setIsLoggedIn(true);
+      return user;
+    }
+    return null;
+  };
+
+  const handleLogout = () => {
+    // Resetar o estado de autenticação
+    setIsLoggedIn(false);
+    
+    // Resetar o usuário para o padrão
+    const defaultUser = allPeopleFlat[5] || {
+      id: '1',
+      name: 'Usuário',
+      email: 'usuario@exemplo.com',
+      role: 'Usuário',
+      phone: '',
+      avatarUrl: '',
+      department: 'TI Gerencial',
+      status: 'inactive',
+      birthDate: '1990-01-01',
+      joinDate: new Date().toISOString(),
+      settings: {
+        theme: 'light',
+        language: 'pt-BR',
+        timezone: 'America/Sao_Paulo',
+        notifications: {
+          email: true,
+          push: true,
+          desktop: true,
+          mentions: true,
+          news: true,
+          updates: true
+        },
+        privacy: {
+          showEmail: true,
+          showPhone: false,
+          showBirthday: true,
+          showActivity: true,
+          profileVisibility: 'public' as const
+        }
+      }
+    };
+    
+    // Atualizar o usuário atual para o padrão
+    setCurrentUser(defaultUser);
+    
+    // Limpar o armazenamento local
+    saveToLocalStorage('isLoggedIn', false);
+    saveToLocalStorage('currentUser', defaultUser);
+    
+    // Redirecionar para a página inicial
+    setActivePage('Dashboard');
+  };
+
+  const handleUpdatePerson = (updatedPerson: Person) => {
+    const updatedPersonWithDefaults: Person = {
+      ...updatedPerson,
+      joinDate: updatedPerson.joinDate || new Date().toISOString(),
+      status: updatedPerson.status || 'inactive',
+      settings: {
+        theme: updatedPerson.settings?.theme || 'light',
+        language: updatedPerson.settings?.language || 'pt-BR',
+        timezone: updatedPerson.settings?.timezone || 'America/Sao_Paulo',
+        notifications: updatedPerson.settings?.notifications || {
+          email: true,
+          push: true,
+          desktop: true,
+          mentions: true,
+          news: true,
+          updates: true
+        },
+        privacy: updatedPerson.settings?.privacy || {
+          showEmail: true,
+          showPhone: false,
+          showBirthday: true,
+          showActivity: true,
+          profileVisibility: 'public' as const
+        }
+      }
+    };
+    
+    setPeople(prev => prev.map(p => p.id === updatedPerson.id ? updatedPersonWithDefaults : p));
+    if (currentUser?.id === updatedPerson.id) {
+      setCurrentUser(updatedPersonWithDefaults);
+    }
+  };
+
+  const handleAddProject = (newProject: Omit<Project, 'id' | 'progress'>) => {
+    setProjects(prev => [
+      { ...newProject, id: Date.now(), progress: 0 },
+      ...prev
+    ]);
+  };
+  
+  const handleUpdateProject = (updatedProject: Project) => {
+    setProjects(prev => 
+      prev.map(project => 
+        project.id === updatedProject.id 
+          ? { ...updatedProject, updatedAt: new Date().toISOString() }
+          : project
+      )
+    );
+  };
+  
+  const handleUpdateProjectStatus = (projectId: number, newStatus: ProjectStatus) => {
+    setProjects(prevProjects =>
+      prevProjects.map(project =>
+        project.id === projectId ? { ...project, status: newStatus } : project
+      )
+    );
+  };
+
+  const documentHandlers = {
+    add: async (docs: Document[]) => {
+      await addDocuments(docs);
+      const allDocs = await getAllDocuments();
+      setDocuments(allDocs);
+    },
+    update: async (doc: Document) => {
+      await updateDocument(doc);
+      const allDocs = await getAllDocuments();
+      setDocuments(allDocs);
+    },
+    delete: async (id: number) => {
+      await deleteDocument(id);
+      const allDocs = await getAllDocuments();
+      setDocuments(allDocs);
+    },
+  };
+
+  const handleAddEvent = (newEvent: Omit<SocialEvent, 'id'>) => {
+    setAllEvents(prev => [...prev, { ...newEvent, id: Date.now() }]);
+  };
+
+  const renderPage = () => {
+    if (!isLoggedIn) {
+      return <Login onLogin={handleLogin} authenticate={authenticate} />;
+    }
+
+    switch (activePage) {
+      case 'Dashboard':
+        return (
+          <Dashboard 
+            currentUser={currentUser} 
+            setActivePage={setActivePage}
+            people={people}
+            setIsChatOpen={() => {}}
+            events={allEvents}
+            documents={documents}
+            projects={projects}
+            onAddProject={handleAddProject}
+          />
+        );
+      case 'Diretório da Equipe':
+        return <TeamDirectory people={people} onEditPerson={setPersonToEdit} />;
+      case 'Projetos':
+        return (
+          <Projects 
+            projects={projects} 
+            onAddProject={handleAddProject}
+            onUpdateProject={handleUpdateProject} 
+            currentUser={currentUser} 
+            onUpdateProjectStatus={handleUpdateProjectStatus}
+            people={people}
+          />
+        );
+      case 'Documentos':
+        return (
+          <DocumentCenter 
+            documents={documents}
+            onAddDocuments={documentHandlers.add}
+            onUpdateDocument={documentHandlers.update}
+            onDeleteDocument={documentHandlers.delete}
+          />
+        );
+      case 'Notícias & Eventos':
+        return (
+          <NewsAndEvents 
+            people={people} 
+            currentUser={currentUser} 
+            events={allEvents}
+            onAddEvent={handleAddEvent}
+          />
+        );
+      case 'Recursos por Departamento':
+        return <ResourcesByDepartment />;
+      case 'Configurações':
+        // The SettingsPage doesn't accept any props
+        return <SettingsPage />;
+      default:
+        return <div>Página não encontrada</div>;
+    }
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <Login 
+        onLogin={handleLoginWrapper}
+        authenticate={(username, password) => {
+          const credential = authenticateUser(username, password, userCredentials);
+          if (credential) {
+            return allPeopleFlat.find(p => p.id === credential.personId);
+          }
+          return null;
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className={`flex h-screen bg-gray-100 dark:bg-gray-900 ${isDarkMode ? 'dark' : ''}`}>
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)}
+        activePage={activePage}
+        setActivePage={setActivePage}
+        onLogout={handleLogout}
+      />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          pageTitle={activePage}
+          onToggleNotifications={() => setIsNotificationsOpen(!isNotificationsOpen)}
+          unreadCount={notifications.filter(n => !n.read).length}
+          currentUser={currentUser}
+          onEditUser={() => setPersonToEdit(currentUser)}
+          onLogout={handleLogout}
+        />
+        
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-800 p-4 md:p-6">
+          {renderPage()}
+        </main>
+      </div>
+
+      <NotificationsPanel 
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        notifications={notifications}
+        onDismiss={(id) => {
+          setNotifications(prev => 
+            prev.map(n => n.id === id ? { ...n, read: true } : n)
+          );
+        }}
+        onDismissAll={() => {
+          setNotifications(prev => 
+            prev.map(n => ({ ...n, read: true }))
+          );
+        }}
+      />
+
+      <HelpWidget onClose={() => {}} />
+      <ChatWidget onClose={() => {}} />
+
+      {personToEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">Editar Perfil</h2>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (personToEdit) {
+                handleUpdatePerson(personToEdit);
+                setPersonToEdit(null);
+              }
+            }}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome</label>
+                  <input
+                    type="text"
+                    value={personToEdit?.name || ''}
+                    onChange={(e) => setPersonToEdit(prev => prev ? { ...prev, name: e.target.value } : null)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                  <input
+                    type="email"
+                    value={personToEdit?.email || ''}
+                    onChange={(e) => setPersonToEdit(prev => prev ? { ...prev, email: e.target.value } : null)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  />
+                </div>
+                <div className="flex justify-end space-x-2 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setPersonToEdit(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-transparent rounded-md hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
+                  >
+                    Salvar
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;

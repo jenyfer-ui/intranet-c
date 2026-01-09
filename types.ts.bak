@@ -1,0 +1,151 @@
+import React from 'react';
+
+export interface NavItem {
+  name: string;
+  icon: React.ReactNode;
+}
+
+export enum VacationStatus {
+  Approved = 'Aprovado',
+  Pending = 'Pendente',
+}
+
+export interface VacationRequest {
+  employee: {
+    name: string;
+    avatarUrl: string;
+  };
+  startDate: string;
+  endDate: string;
+  status: VacationStatus;
+}
+
+export interface Person {
+  name: string;
+  role: string;
+  email: string;
+  phone: string;
+  avatarUrl: string;
+  linkedinUrl?: string;
+  department?: string;
+  status?: 'online' | 'away' | 'unavailable' | 'inactive';
+  birthDate?: string; // YYYY-MM-DD
+}
+
+// New Message interface for chat functionality
+export interface Message {
+  author: 'user' | 'bot';
+  text: string;
+  timestamp: string; // ISO string
+}
+
+export interface Department {
+  name: string;
+  description: string;
+  members: Person[];
+}
+
+export interface Notification {
+  id: string;
+  type: 'vacation' | 'project' | 'security' | 'personnel' | 'announcement';
+  message: string;
+  timestamp: string; // ISO string
+  read: boolean;
+}
+
+export interface Document {
+  id: number;
+  name: string;
+  type: 'pdf' | 'docx' | 'xlsx' | 'png' | 'jpg';
+  category: 'Contratos' | 'Faturas' | 'RH' | 'Relatórios' | 'Projetos';
+  modifiedDate: string; // ISO string
+  size: number; // in KB
+  department: string;
+  status: 'Aprovado' | 'Em Revisão' | 'Vencido';
+  file?: File;
+  isProtected?: boolean; // New field for password protection
+  password?: string;    // New field for storing the password (plain text for mock)
+}
+
+export interface NewsArticle {
+  id: number;
+  title: string;
+  summary: string;
+  author: string;
+  date: string; // ISO string
+  imageUrl: string;
+  likes: number;
+  comments: { author: string; text: string; avatarUrl: string }[];
+}
+
+export type SocialEventCategory = 'Evento Corporativo' | 'Feriado Nacional' | 'Ponto Facultativo' | 'Aniversariante' | 'meeting' | 'celebration' | 'workshop' | 'social' | 'training';
+
+export interface SocialEvent {
+    id: number;
+    title: string;
+    date: string; // ISO String
+    time: string; // e.g., "10:00 - 12:00"
+    location: string;
+    description: string;
+    category: SocialEventCategory;
+}
+
+export enum ProjectStatus {
+  InProgress = 'Em Andamento',
+  Completed = 'Concluído',
+  OnHold = 'Em Pausa', // Mapped to 'A FAZER' in Kanban
+  Upcoming = 'Próximo', // Mapped to 'PRÓXIMO' in Kanban
+  Pending = 'Aguardando/Bloqueado', // NEW: Added for Kanban column
+}
+
+export enum ProjectPriority {
+  High = 'Alta',
+  Medium = 'Média',
+  Low = 'Baixa',
+}
+
+export interface Project {
+  id: number;
+  title: string;
+  manager: string;
+  department: string;
+  status: ProjectStatus;
+  priority: ProjectPriority;
+  deadline: string; // ISO string
+  progress: number; // 0-100
+  description?: string;
+  team?: string[]; // Array of member names
+}
+
+// New interfaces for ResourcesByDepartment
+export interface System {
+  name: string;
+  url: string;
+  isExternal?: boolean;
+  icon?: React.FC<any>; // Para sistemas internos ou ícones específicos
+}
+
+export interface TrainingItem {
+  title: string;
+  steps: string[];
+  videoUrl?: string; // Placeholder for YouTube/Vimeo embed
+  imageUrl?: string; // Placeholder for screenshot
+}
+
+export interface TrainingGuideGroup {
+  systemName: string;
+  guides: TrainingItem[];
+}
+
+export interface DepartmentResource {
+  name: string;
+  shortDescription: string; // Nova descrição curta para os cartões da visão geral
+  description: string;
+  systems: System[];
+  trainingGuides: TrainingGuideGroup[];
+}
+
+// Moved from DocumentCenter.tsx to break circular dependency
+export const CATEGORIES: Document['category'][] = ['Contratos', 'Faturas', 'RH', 'Relatórios', 'Projetos'];
+export const DEPARTMENTS = ['TI Gerencial', 'FROTAS', 'Custo/Planejamento', 'Diretoria', 'SUPRIMENTOS | GERENCIAL', 'Gestor - Financeiro', 'GESTOR OBRA', 'Comercial', 'ADM | OBRAS', 'Financeiro', 'SESMT', 'Técnico', 'ADM OBRA | ELIANE', 'SUPRIMENTOS | OBRAS'];
+export const STATUSES: Document['status'][] = ['Aprovado', 'Em Revisão', 'Vencido'];
